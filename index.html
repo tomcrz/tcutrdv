@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RDV Barber</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✂️</text></svg>"/>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Jost:wght@300;400;500;600&display=swap');
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html,body,#root{height:100%;}
+    body{font-family:'Jost',sans-serif;background:#f7f4ef;color:#1a1a1a;-webkit-font-smoothing:antialiased;}
+    .mode-switch{position:fixed;top:14px;right:16px;z-index:999;display:flex;gap:4px;background:#1a1a1a;padding:3px;border-radius:2px;}
+    .mode-btn{padding:5px 12px;font-family:'Jost',sans-serif;font-size:0.62rem;font-weight:500;letter-spacing:0.15em;text-transform:uppercase;border:none;background:transparent;color:#6a6050;cursor:pointer;transition:all .2s;border-radius:1px;}
+    .mode-btn.active{background:#c8a96e;color:#111;}
+    .client-page{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem 5rem;}
+    .c-card{background:#fff;border:1px solid #e0dbd0;max-width:460px;width:100%;padding:2.5rem 2rem;position:relative;}
+    .c-card::after{content:'';position:absolute;top:7px;left:7px;right:-7px;bottom:-7px;border:1px solid #c8bfa8;z-index:-1;}
+    .c-logo{font-family:'Cormorant Garamond',serif;font-size:0.95rem;font-weight:300;letter-spacing:0.35em;text-transform:uppercase;color:#8a7a60;margin-bottom:2rem;text-align:center;}
+    .c-h1{font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:300;color:#1a1a1a;line-height:1.2;}
+    .c-h1 em{font-style:italic;color:#8a7a60;}
+    .c-sub{font-size:0.72rem;letter-spacing:0.1em;color:#9a9080;margin:0.3rem 0 1.5rem;font-weight:300;}
+    .c-div{width:36px;height:1px;background:#c8bfa8;margin:1.2rem 0;}
+    .c-label{display:block;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#8a7a60;margin-bottom:0.35rem;margin-top:1.1rem;font-weight:500;}
+    .c-input{width:100%;border:1px solid #ddd8cc;background:#faf9f6;padding:.65rem .9rem;font-family:'Jost',sans-serif;font-size:.88rem;font-weight:300;color:#1a1a1a;outline:none;transition:border-color .2s;}
+    .c-input:focus{border-color:#8a7a60;background:#fff;}
+    .c-note{font-size:.7rem;color:#aaa098;margin-top:.25rem;font-weight:300;}
+    .c-err{color:#b84040;font-size:.72rem;margin-top:.3rem;}
+    .c-btn-primary{width:100%;margin-top:1.6rem;padding:.82rem;background:#1a1a1a;color:#fff;border:none;font-family:'Jost',sans-serif;font-size:.72rem;font-weight:500;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:background .2s;}
+    .c-btn-primary:hover{background:#8a7a60;}
+    .c-btn-primary:disabled{background:#ccc;cursor:default;}
+    .c-btn-back{width:100%;margin-top:.5rem;padding:.75rem;background:transparent;color:#8a7a60;border:1px solid #c8bfa8;font-family:'Jost',sans-serif;font-size:.7rem;font-weight:400;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;transition:all .2s;}
+    .c-btn-back:hover{border-color:#8a7a60;}
+    .steps{display:flex;gap:4px;margin-bottom:1.5rem;}
+    .step-dot{height:2px;flex:1;background:#ddd8cc;transition:background .3s;}
+    .step-dot.done{background:#8a7a60;}
+    .step-dot.active{background:#1a1a1a;}
+    .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;}
+    .cal-nav button{background:none;border:none;cursor:pointer;color:#8a7a60;font-size:1.1rem;padding:.2rem .5rem;transition:color .2s;}
+    .cal-nav button:hover{color:#1a1a1a;}
+    .cal-month{font-family:'Cormorant Garamond',serif;font-size:1rem;letter-spacing:.15em;text-transform:uppercase;}
+    .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+    .cal-dname{text-align:center;font-size:.58rem;letter-spacing:.08em;color:#9a9080;text-transform:uppercase;padding:.3rem 0;}
+    .cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-family:'Jost',sans-serif;font-weight:300;background:none;border:1px solid transparent;cursor:pointer;color:#1a1a1a;transition:all .15s;}
+    .cal-day:hover:not(:disabled){border-color:#c8bfa8;background:#faf9f6;}
+    .cal-day.avail{border-color:#c8bfa8;}
+    .cal-day.sel{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
+    .cal-day:disabled{color:#d0ccc4;cursor:default;}
+    .cal-day.empty{visibility:hidden;}
+    .slot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:1rem;}
+    .slot-btn{padding:.48rem;border:1px solid #ddd8cc;background:#faf9f6;font-family:'Jost',sans-serif;font-size:.78rem;font-weight:300;color:#1a1a1a;cursor:pointer;transition:all .15s;text-align:center;}
+    .slot-btn:hover{border-color:#8a7a60;background:#fff;}
+    .slot-btn.sel{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
+    .slot-btn.taken{color:#ccc;cursor:default;background:#f5f4f0;}
+    .no-slot{text-align:center;color:#9a9080;font-size:.82rem;font-weight:300;padding:1rem 0;font-style:italic;}
+    .success-ico{font-size:2.2rem;margin-bottom:.8rem;}
+    .success-box{background:#f7f4ef;padding:1rem;margin-top:1.2rem;border-left:2px solid #8a7a60;}
+    .success-box p{font-size:.83rem;font-weight:300;color:#5a5040;line-height:1.9;}
+    .admin-page{min-height:100vh;display:flex;flex-direction:column;background:#111;color:#e8e2d8;padding-bottom:2rem;}
+    .a-header{padding:1.1rem 1.5rem;border-bottom:1px solid #222;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;background:#111;}
+    .a-logo{font-family:'Cormorant Garamond',serif;font-size:1rem;font-weight:300;letter-spacing:.3em;text-transform:uppercase;color:#c8a96e;}
+    .a-date{font-size:.68rem;color:#6a6050;font-weight:300;}
+    .a-tabs{display:flex;border-bottom:1px solid #222;padding:0 1.5rem;background:#111;}
+    .a-tab{padding:.75rem 1.2rem;font-size:.68rem;font-weight:500;letter-spacing:.15em;text-transform:uppercase;color:#5a5040;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;margin-bottom:-1px;font-family:'Jost',sans-serif;}
+    .a-tab:hover{color:#c8a96e;}
+    .a-tab.active{color:#c8a96e;border-bottom-color:#c8a96e;}
+    .a-body{padding:1.5rem;max-width:820px;width:100%;margin:0 auto;}
+    .a-h1{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:300;margin-bottom:.2rem;}
+    .a-h1 em{font-style:italic;color:#c8a96e;}
+    .a-sub{font-size:.68rem;letter-spacing:.1em;color:#6a6050;margin-bottom:1.5rem;}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-bottom:1.5rem;}
+    .stat{background:#1a1a18;border:1px solid #242420;padding:1rem;text-align:center;}
+    .stat-n{font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:300;color:#c8a96e;line-height:1;}
+    .stat-l{font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:#5a5040;margin-top:.25rem;}
+    .a-card{background:#1a1a18;border:1px solid #242420;padding:1.1rem 1.2rem;margin-bottom:.7rem;}
+    .a-card-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;}
+    .a-name{font-family:'Cormorant Garamond',serif;font-size:1.15rem;font-weight:400;}
+    .a-meta{font-size:.76rem;color:#7a7060;font-weight:300;margin-top:.35rem;line-height:1.7;}
+    .a-meta strong{color:#c8a96e;font-weight:400;}
+    .a-badge{display:inline-block;padding:.18rem .6rem;font-size:.6rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;}
+    .badge-up{background:#c8a96e22;color:#c8a96e;border:1px solid #c8a96e44;}
+    .badge-today{background:#c8a96e;color:#111;}
+    .badge-past{background:#1e1e1c;color:#4a4840;border:1px solid #222;}
+    .a-del{background:none;border:1px solid #2a2820;color:#5a5040;font-size:.6rem;font-family:'Jost',sans-serif;font-weight:500;letter-spacing:.1em;text-transform:uppercase;padding:.28rem .65rem;cursor:pointer;transition:all .2s;}
+    .a-del:hover{border-color:#b84040;color:#b84040;}
+    .filters{display:flex;gap:.4rem;margin-bottom:1rem;flex-wrap:wrap;}
+    .f-btn{padding:.3rem .8rem;font-size:.62rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;border:1px solid #242420;background:transparent;color:#5a5040;cursor:pointer;transition:all .2s;font-family:'Jost',sans-serif;}
+    .f-btn.active{background:#c8a96e22;color:#c8a96e;border-color:#c8a96e44;}
+    .range-form{background:#1a1a18;border:1px solid #242420;padding:1.2rem;margin-bottom:1.5rem;}
+    .range-row{display:flex;gap:.7rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:.8rem;}
+    .a-field{display:flex;flex-direction:column;gap:.35rem;flex:1;min-width:100px;}
+    .a-label{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:#5a5040;font-weight:500;}
+    .a-input{background:#111;border:1px solid #2a2820;color:#e8e2d8;padding:.58rem .8rem;font-family:'Jost',sans-serif;font-size:.84rem;font-weight:300;outline:none;transition:border-color .2s;width:100%;}
+    .a-input:focus{border-color:#c8a96e;}
+    .a-btn-gold{padding:.62rem 1.2rem;background:#c8a96e;color:#111;border:none;font-family:'Jost',sans-serif;font-size:.68rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;transition:background .2s;white-space:nowrap;align-self:flex-end;}
+    .a-btn-gold:hover{background:#dfc07e;}
+    .a-btn-gold:disabled{background:#2a2820;color:#4a4840;cursor:default;}
+    .preview{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;padding-top:.8rem;border-top:1px solid #1e1e1c;}
+    .preview-label{font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:#5a5040;white-space:nowrap;}
+    .preview-chips{display:flex;flex-wrap:wrap;gap:4px;}
+    .p-chip{padding:.2rem .55rem;font-size:.72rem;font-weight:300;border:1px solid #c8a96e44;color:#c8a96e;background:#c8a96e0d;}
+    .err-msg{font-size:.7rem;color:#b84040;margin-top:.4rem;}
+    .date-group{margin-bottom:1.2rem;}
+    .dg-head{font-size:.66rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#c8a96e;padding:.5rem 0;border-bottom:1px solid #222;margin-bottom:.6rem;display:flex;justify-content:space-between;align-items:center;}
+    .dg-del{background:none;border:1px solid #2a2820;color:#4a4840;font-size:.58rem;font-family:'Jost',sans-serif;font-weight:500;letter-spacing:.1em;text-transform:uppercase;padding:.18rem .55rem;cursor:pointer;transition:all .2s;}
+    .dg-del:hover{border-color:#b84040;color:#b84040;}
+    .chips{display:flex;flex-wrap:wrap;gap:5px;}
+    .chip{padding:.28rem .75rem;font-size:.76rem;font-weight:300;border:1px solid #2a2820;color:#e8e2d8;display:flex;align-items:center;gap:.4rem;background:#1a1a18;}
+    .chip.taken{color:#5a5040;border-color:#1e1e1c;}
+    .chip-dot{width:4px;height:4px;border-radius:50%;background:#c8a96e;flex-shrink:0;}
+    .chip.taken .chip-dot{background:#3a3830;}
+    .rm-btn{background:none;border:none;color:#3a3830;cursor:pointer;font-size:.85rem;line-height:1;padding:0;transition:color .2s;}
+    .rm-btn:hover{color:#b84040;}
+    .sms-info{background:#1a1a18;border:1px solid #242420;border-left:2px solid #c8a96e;padding:.9rem 1.1rem;font-size:.77rem;color:#7a7060;font-weight:300;line-height:1.7;margin-bottom:1.2rem;}
+    .sms-info strong{color:#c8a96e;font-weight:400;}
+    .rem-list{background:#1a1a18;border:1px solid #242420;overflow:hidden;}
+    .rem-item{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;border-bottom:1px solid #1e1e1c;gap:.5rem;}
+    .rem-item:last-child{border-bottom:none;}
+    .rem-name{color:#e8e2d8;font-size:.85rem;}
+    .rem-info{color:#5a5040;font-size:.72rem;margin-top:.1rem;}
+    .rem-tel{color:#c8a96e;font-size:.72rem;}
+    .copy-btn{padding:.28rem .75rem;font-size:.62rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;background:#c8a96e;color:#111;border:none;cursor:pointer;font-family:'Jost',sans-serif;transition:all .2s;white-space:nowrap;flex-shrink:0;}
+    .copy-btn:hover{background:#dfc07e;}
+    .copy-btn.done{background:#1e2e1e;color:#5a9060;cursor:default;}
+    .empty-state{text-align:center;color:#3a3830;font-size:.82rem;font-weight:300;font-style:italic;padding:2.5rem 0;}
+    .admin-pin{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#111;padding:2rem;}
+    .pin-card{background:#1a1a18;border:1px solid #242420;padding:2.5rem 2rem;max-width:340px;width:100%;text-align:center;}
+    .pin-title{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:300;color:#c8a96e;margin-bottom:.4rem;}
+    .pin-sub{font-size:.7rem;color:#5a5040;letter-spacing:.1em;margin-bottom:1.5rem;}
+    .pin-input{width:100%;background:#111;border:1px solid #2a2820;color:#e8e2d8;padding:.7rem;font-family:'Jost',sans-serif;font-size:1.2rem;font-weight:300;outline:none;text-align:center;letter-spacing:.3em;margin-bottom:.8rem;}
+    .pin-input:focus{border-color:#c8a96e;}
+    .pin-btn{width:100%;padding:.7rem;background:#c8a96e;color:#111;border:none;font-family:'Jost',sans-serif;font-size:.7rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;}
+    .pin-btn:hover{background:#dfc07e;}
+    .pin-err{color:#b84040;font-size:.72rem;margin-top:.5rem;}
+    .loading{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f7f4ef;}
+    .loading-txt{font-family:'Cormorant Garamond',serif;font-size:1rem;color:#8a7a60;letter-spacing:.2em;}
+    @media(max-width:500px){
+      .stats{grid-template-columns:1fr 1fr;}
+      .a-body{padding:1rem;}
+      .slot-grid{grid-template-columns:repeat(4,1fr);}
+      .range-row{flex-direction:column;}
+      .a-btn-gold{width:100%;}
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+const SUPABASE_URL = “https://bmtqaznsgcdevciyhgoa.supabase.co”;
+const SUPABASE_KEY = “eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtdHFhem5zZ2NkZXZjaXloZ29hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwNTk5OTMsImV4cCI6MjA5MzYzNTk5M30.sgU2PfQQvo9aAX8R2vdazalLzePkojQXH6D748LkyHs”;
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const ADMIN_PIN = “1234”;
+const MONTHS_FR = [“Janvier”,“Février”,“Mars”,“Avril”,“Mai”,“Juin”,“Juillet”,“Août”,“Septembre”,“Octobre”,“Novembre”,“Décembre”];
+const DAYS_FR   = [“Dim”,“Lun”,“Mar”,“Mer”,“Jeu”,“Ven”,“Sam”];
+
+function toStr(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function todayStr(){ return toStr(new Date()); }
+function tomorrowStr(){ const d=new Date(); d.setDate(d.getDate()+1); return toStr(d); }
+function formatLong(s){ const [y,m,d]=s.split(”-”); return new Date(y,m-1,d).toLocaleDateString(“fr-FR”,{weekday:“long”,day:“numeric”,month:“long”,year:“numeric”}); }
+function formatShort(s){ const [y,m,d]=s.split(”-”); return new Date(y,m-1,d).toLocaleDateString(“fr-FR”,{weekday:“long”,day:“numeric”,month:“long”}); }
+function generateSlots(start,end){
+if(!start||!end||end<=start) return [];
+const r=[];
+const [sh,sm]=start.split(”:”).map(Number);
+const [eh,em]=end.split(”:”).map(Number);
+let cur=sh*60+sm; const endMin=eh*60+em;
+while(cur+40<=endMin){ const h=Math.floor(cur/60),mn=cur%60; r.push(`${String(h).padStart(2,"0")}:${String(mn).padStart(2,"0")}`); cur+=40; }
+return r;
+}
+
+// Convertit les tableaux plats en objet groupé par date
+function slotsToObj(rows){ const o={}; rows.forEach(r=>{ if(!o[r.date])o[r.date]=[]; o[r.date].push(r.time); o[r.date].sort(); }); return o; }
+
+function PinScreen({onSuccess}){
+const [pin,setPin]=useState(””); const [err,setErr]=useState(false);
+function check(){ if(pin===ADMIN_PIN){onSuccess();}else{setErr(true);setPin(””);} }
+return (
+<div className="admin-pin">
+<div className="pin-card">
+<div className="pin-title">RDV Barber</div>
+<div className="pin-sub">Accès administration</div>
+<input className=“pin-input” type=“password” maxLength={6} placeholder=”••••”
+value={pin} onChange={e=>{setPin(e.target.value);setErr(false);}}
+onKeyDown={e=>e.key===“Enter”&&check()} autoFocus/>
+<button className="pin-btn" onClick={check}>Entrer</button>
+{err&&<p className="pin-err">Code incorrect</p>}
+</div>
+</div>
+);
+}
+
+function ClientView({slots,bookings,onBook}){
+const [step,setStep]=useState(1);
+const [prenom,setPrenom]=useState(””);
+const [tel,setTel]=useState(””);
+const [calMonth,setCalMonth]=useState(()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),1);});
+const [selDate,setSelDate]=useState(null);
+const [selSlot,setSelSlot]=useState(null);
+const [errors,setErrors]=useState({});
+const [done,setDone]=useState(false);
+const td=todayStr();
+const y=calMonth.getFullYear(),m=calMonth.getMonth();
+const daysCount=new Date(y,m+1,0).getDate();
+const firstDay=new Date(y,m,1).getDay();
+function daySlots(ds){ const all=slots[ds]||[]; const taken=bookings.filter(b=>b.date===ds).map(b=>b.time); return all.map(t=>({time:t,taken:taken.includes(t)})); }
+function hasAvail(ds){ if(ds<td)return false; return (slots[ds]||[]).some(t=>!bookings.find(b=>b.date===ds&&b.time===t)); }
+function validate(){ const e={}; if(!prenom.trim())e.prenom=“Votre prénom est requis”; if(!tel.trim())e.tel=“Votre numéro est requis”; else if(!/^(+?\d[\d\s-.]{7,14})$/.test(tel.trim()))e.tel=“Numéro invalide”; setErrors(e); return !Object.keys(e).length; }
+async function confirm(){ await onBook({prenom:prenom.trim(),tel:tel.trim(),date:selDate,time:selSlot}); setDone(true); }
+if(done) return (
+<div className="client-page">
+<div className=“c-card” style={{textAlign:“center”}}>
+<div className="c-logo">RDV Barber</div>
+<div className="success-ico">✓</div>
+<h1 className="c-h1">Merci <em>{prenom}</em> !</h1>
+<p className="c-sub">Votre rendez-vous est confirmé</p>
+<div className="success-box"><p>📅 {formatLong(selDate)}<br/>🕐 {selSlot} — 40 min<br/>📱 Rappel la veille au {tel}</p></div>
+<p style={{fontSize:”.72rem”,color:”#9a9080”,marginTop:“1rem”,fontWeight:300}}>Un SMS de rappel vous sera envoyé la veille.</p>
+<button className=“c-btn-back” style={{marginTop:“1.5rem”}} onClick={()=>{setDone(false);setStep(1);setPrenom(””);setTel(””);setSelDate(null);setSelSlot(null);}}>Prendre un autre RDV</button>
+</div>
+</div>
+);
+return (
+<div className="client-page">
+<div className="c-card">
+<div className="c-logo">RDV Barber</div>
+<div className="steps">{[1,2,3].map(s=><div key={s} className={`step-dot ${step>s?"done":step===s?"active":""}`}/>)}</div>
+{step===1&&<>
+<h1 className="c-h1">Vos <em>coordonnées</em></h1>
+<p className="c-sub">Renseignez vos informations pour continuer</p>
+<div className="c-div"/>
+<label className="c-label">Prénom</label>
+<input className=“c-input” placeholder=“Votre prénom” value={prenom} onChange={e=>setPrenom(e.target.value)}/>
+{errors.prenom&&<p className="c-err">{errors.prenom}</p>}
+<label className="c-label">Téléphone</label>
+<input className=“c-input” type=“tel” placeholder=”+33 6 00 00 00 00” value={tel} onChange={e=>setTel(e.target.value)}/>
+<p className="c-note">Vous recevrez un SMS de rappel la veille.</p>
+{errors.tel&&<p className="c-err">{errors.tel}</p>}
+<button className=“c-btn-primary” onClick={()=>{if(validate())setStep(2);}}>Choisir une date →</button>
+</>}
+{step===2&&<>
+<h1 className="c-h1">Choisissez <em>une date</em></h1>
+<p className="c-sub">Les jours disponibles sont mis en évidence</p>
+<div className="c-div"/>
+<div className="cal-nav">
+<button onClick={()=>setCalMonth(new Date(y,m-1,1))}>‹</button>
+<span className="cal-month">{MONTHS_FR[m]} {y}</span>
+<button onClick={()=>setCalMonth(new Date(y,m+1,1))}>›</button>
+</div>
+<div className=“cal-grid” style={{marginBottom:“4px”}}>{DAYS_FR.map(d=><div key={d} className="cal-dname">{d}</div>)}</div>
+<div className="cal-grid">
+{Array.from({length:firstDay}).map((*,i)=><div key={“e”+i} className=“cal-day empty”/>)}
+{Array.from({length:daysCount}).map((*,i)=>{
+const day=i+1;
+const ds=`${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+const avail=hasAvail(ds),isSel=selDate===ds;
+return <button key={ds} className={`cal-day${avail?" avail":""}${isSel?" sel":""}`} disabled={ds<td||!avail} onClick={()=>{setSelDate(ds);setSelSlot(null);setStep(3);}}>{day}</button>;
+})}
+</div>
+<button className=“c-btn-back” style={{marginTop:“1.2rem”}} onClick={()=>setStep(1)}>← Retour</button>
+</>}
+{step===3&&selDate&&<>
+<h1 className="c-h1">Choisissez <em>un créneau</em></h1>
+<p className="c-sub">{formatLong(selDate)} — 40 min</p>
+<div className="c-div"/>
+{daySlots(selDate).length===0?<p className="no-slot">Aucun créneau ce jour.</p>:
+<div className="slot-grid">{daySlots(selDate).map(({time,taken})=><button key={time} className={`slot-btn${taken?" taken":""}${selSlot===time?" sel":""}`} disabled={taken} onClick={()=>setSelSlot(time)}>{time}</button>)}</div>}
+<button className="c-btn-primary" disabled={!selSlot} onClick={confirm}>Confirmer le rendez-vous</button>
+<button className=“c-btn-back” onClick={()=>{setStep(2);setSelSlot(null);}}>← Retour</button>
+</>}
+</div>
+</div>
+);
+}
+
+function AdminView({slots,bookings,onAddSlots,onRemoveSlot,onRemoveDay,onDeleteBooking,onLogout}){
+const [tab,setTab]=useState(“rdv”);
+const [filter,setFilter]=useState(“upcoming”);
+const [newDate,setNewDate]=useState(””);
+const [newStart,setNewStart]=useState(””);
+const [newEnd,setNewEnd]=useState(””);
+const [sent,setSent]=useState({});
+const td=todayStr(),tm=tomorrowStr();
+const generated=generateSlots(newStart,newEnd);
+const rangeError=newStart&&newEnd&&newEnd<=newStart;
+const isBooked=(date,time)=>bookings.some(b=>b.date===date&&b.time===time);
+const bookedBy=(date,time)=>bookings.find(b=>b.date===date&&b.time===time);
+const upcoming=bookings.filter(b=>b.date>=td);
+const past=bookings.filter(b=>b.date<td);
+const tmBookings=bookings.filter(b=>b.date===tm);
+const filtered=bookings.filter(b=>filter===“upcoming”?b.date>=td:filter===“past”?b.date<td:true).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
+const sortedDates=Object.keys(slots).sort();
+function getStatus(d){return d===td?“today”:d>td?“upcoming”:“past”;}
+return (
+<div className="admin-page">
+<div className="a-header">
+<div className="a-logo">RDV Barber — Admin</div>
+<div style={{display:“flex”,alignItems:“center”,gap:“1rem”}}>
+<div className="a-date">{new Date().toLocaleDateString(“fr-FR”,{weekday:“long”,day:“numeric”,month:“long”})}</div>
+<button onClick={onLogout} style={{background:“none”,border:“1px solid #2a2820”,color:”#5a5040”,fontSize:”.6rem”,fontFamily:”‘Jost’,sans-serif”,fontWeight:500,letterSpacing:”.1em”,textTransform:“uppercase”,padding:”.25rem .6rem”,cursor:“pointer”}}>Sortir</button>
+</div>
+</div>
+<div className="a-tabs">
+{[{id:“rdv”,label:“Rendez-vous”},{id:“slots”,label:“Créneaux”},{id:“rappels”,label:“Rappels”+(tmBookings.length?” (”+tmBookings.length+”)”:””)}].map(t=>
+<button key={t.id} className={“a-tab”+(tab===t.id?” active”:””)} onClick={()=>setTab(t.id)}>{t.label}</button>
+)}
+</div>
+<div className="a-body">
+{tab===“rdv”&&<>
+<div className="stats">
+<div className="stat"><div className="stat-n">{upcoming.length}</div><div className="stat-l">À venir</div></div>
+<div className="stat"><div className="stat-n">{past.length}</div><div className="stat-l">Passés</div></div>
+<div className="stat"><div className="stat-n">{bookings.length}</div><div className="stat-l">Total</div></div>
+</div>
+<div className="filters">
+{[{id:“upcoming”,l:“À venir”},{id:“past”,l:“Passés”},{id:“all”,l:“Tous”}].map(f=>
+<button key={f.id} className={“f-btn”+(filter===f.id?” active”:””)} onClick={()=>setFilter(f.id)}>{f.l}</button>
+)}
+</div>
+{filtered.length===0?<div className="empty-state">Aucun rendez-vous dans cette catégorie.</div>:
+filtered.map(b=>{const st=getStatus(b.date);return(
+<div key={b.id} className="a-card">
+<div className="a-card-row">
+<div className="a-name">{b.prenom}</div>
+<div style={{display:“flex”,gap:“6px”,alignItems:“center”}}>
+<span className={“a-badge “+(st===“today”?“badge-today”:st===“upcoming”?“badge-up”:“badge-past”)}>{st===“today”?“Aujourd’hui”:st===“upcoming”?“À venir”:“Passé”}</span>
+<button className=“a-del” onClick={()=>onDeleteBooking(b.id)}>Suppr.</button>
+</div>
+</div>
+<div className="a-meta">📅 <strong>{formatShort(b.date)}</strong> à <strong>{b.time}</strong> — 40 min<br/>📱 {b.tel}</div>
+</div>
+);})}
+</>}
+{tab===“slots”&&<>
+<h2 className="a-h1">Gérer les <em>créneaux</em></h2>
+<p className="a-sub">Définissez une plage horaire — les créneaux de 40 min sont générés automatiquement</p>
+<div className="range-form">
+<div className="range-row">
+<div className="a-field"><label className="a-label">Date</label><input className=“a-input” type=“date” value={newDate} min={td} onChange={e=>setNewDate(e.target.value)}/></div>
+<div className="a-field"><label className="a-label">Disponible de</label><input className=“a-input” type=“time” value={newStart} onChange={e=>setNewStart(e.target.value)}/></div>
+<div className="a-field"><label className="a-label">Jusqu’à</label><input className=“a-input” type=“time” value={newEnd} onChange={e=>setNewEnd(e.target.value)}/></div>
+<button className=“a-btn-gold” disabled={!newDate||!newStart||!newEnd||!!rangeError||generated.length===0} onClick={()=>{onAddSlots(newDate,generated);setNewStart(””);setNewEnd(””);}}>Générer</button>
+</div>
+{rangeError&&<p className="err-msg">L’heure de fin doit être après l’heure de début.</p>}
+{generated.length>0&&!rangeError&&<div className="preview"><span className="preview-label">{generated.length} créneau{generated.length>1?“x”:””} :</span><div className="preview-chips">{generated.map(t=><span key={t} className="p-chip">{t}</span>)}</div></div>}
+</div>
+{sortedDates.length===0?<div className="empty-state">Aucun créneau. Définissez une plage horaire ci-dessus.</div>:
+sortedDates.map(date=>{const all=slots[date]||[],free=all.filter(t=>!isBooked(date,t)).length;return(
+<div key={date} className="date-group">
+<div className="dg-head">
+<span>{formatShort(date)}</span>
+<div style={{display:“flex”,alignItems:“center”,gap:”.6rem”}}>
+<span style={{color:”#4a4840”,fontSize:”.6rem”}}>{free} libre(s) / {all.length}</span>
+{free===all.length&&<button className=“dg-del” onClick={()=>onRemoveDay(date)}>Suppr. jour</button>}
+</div>
+</div>
+<div className="chips">{all.map(time=>{const taken=isBooked(date,time),who=bookedBy(date,time);return(
+<div key={time} className={“chip”+(taken?” taken”:””)} title={taken?“Réservé par “+who?.prenom:“Disponible”}>
+<div className="chip-dot"/>{time}
+{taken?<span style={{fontSize:”.68rem”,color:”#5a5040”}}>({who?.prenom})</span>:<button className=“rm-btn” onClick={()=>onRemoveSlot(date,time)}>×</button>}
+</div>
+);})}</div>
+</div>
+);})}
+</>}
+{tab===“rappels”&&<>
+<h2 className="a-h1">Rappels <em>SMS</em></h2>
+<p className="a-sub">Clients avec un rendez-vous demain — {formatShort(tm)}</p>
+<div className="sms-info"><strong>Note :</strong> Cliquez sur “Copier SMS” pour générer le message pré-rempli à envoyer à chaque client.</div>
+{tmBookings.length===0?<div className="empty-state">Aucun rendez-vous demain.</div>:
+<div className="rem-list">{tmBookings.sort((a,b)=>a.time.localeCompare(b.time)).map(b=>{
+const msg=`Bonjour ${b.prenom}, rappel de votre rendez-vous demain ${formatShort(b.date)} à ${b.time} (40 min). À bientôt !`;
+const ok=sent[b.id];
+return(<div key={b.id} className="rem-item">
+<div><div className="rem-name">{b.prenom}</div><div className="rem-info">{b.time} — 40 min</div><div className="rem-tel">{b.tel}</div></div>
+<button className={“copy-btn”+(ok?” done”:””)} onClick={()=>{if(!ok){navigator.clipboard.writeText(msg).catch(()=>{});setSent(s=>({…s,[b.id]:true}));}}}>{ok?“✓ Copié”:“Copier SMS”}</button>
+</div>);
+})}</div>}
+{bookings.filter(b=>b.date>tm).length>0&&<>
+<div style={{margin:“1.8rem 0 .8rem”,fontFamily:”‘Cormorant Garamond’,serif”,fontSize:“1.05rem”,color:”#c8a96e”}}>Prochains rappels à prévoir</div>
+{[…new Set(bookings.filter(b=>b.date>tm).map(b=>b.date))].sort().slice(0,4).map(date=>
+<div key={date} style={{padding:”.55rem 0”,borderBottom:“1px solid #1e1e1c”,fontSize:”.78rem”,color:”#5a5040”,fontWeight:300}}>{formatShort(date)} — {bookings.filter(b=>b.date===date).length} client(s)</div>
+)}
+</>}
+</>}
+</div>
+</div>
+);
+}
+
+function App(){
+const [mode,setMode]=useState(“client”);
+const [adminAuth,setAdminAuth]=useState(false);
+const [slots,setSlots]=useState({});
+const [bookings,setBookings]=useState([]);
+const [loading,setLoading]=useState(true);
+
+async function loadData(){
+const {data:sData}=await sb.from(“slots”).select(”*”);
+const {data:bData}=await sb.from(“bookings”).select(”*”);
+if(sData) setSlots(slotsToObj(sData));
+if(bData) setBookings(bData);
+setLoading(false);
+}
+
+useEffect(()=>{ loadData(); },[]);
+
+const handleBook=useCallback(async(booking)=>{
+await sb.from(“bookings”).insert([booking]);
+await loadData();
+},[]);
+
+const handleAddSlots=useCallback(async(date,times)=>{
+const rows=times.map(time=>({date,time}));
+await sb.from(“slots”).insert(rows);
+await loadData();
+},[]);
+
+const handleRemoveSlot=useCallback(async(date,time)=>{
+await sb.from(“slots”).delete().eq(“date”,date).eq(“time”,time);
+await loadData();
+},[]);
+
+const handleRemoveDay=useCallback(async(date)=>{
+await sb.from(“slots”).delete().eq(“date”,date);
+await loadData();
+},[]);
+
+const handleDeleteBooking=useCallback(async(id)=>{
+await sb.from(“bookings”).delete().eq(“id”,id);
+await loadData();
+},[]);
+
+if(loading) return <div className="loading"><div className="loading-txt">Chargement…</div></div>;
+
+return (
+<>
+<div className="mode-switch">
+<button className={“mode-btn”+(mode===“client”?” active”:””)} onClick={()=>setMode(“client”)}>Client</button>
+<button className={“mode-btn”+(mode===“admin”?” active”:””)} onClick={()=>setMode(“admin”)}>Admin</button>
+</div>
+{mode===“client”&&<ClientView slots={slots} bookings={bookings} onBook={handleBook}/>}
+{mode===“admin”&&!adminAuth&&<PinScreen onSuccess={()=>setAdminAuth(true)}/>}
+{mode===“admin”&&adminAuth&&<AdminView slots={slots} bookings={bookings} onAddSlots={handleAddSlots} onRemoveSlot={handleRemoveSlot} onRemoveDay={handleRemoveDay} onDeleteBooking={handleDeleteBooking} onLogout={()=>{setAdminAuth(false);setMode(“client”);}}/>}
+</>
+);
+}
+
+ReactDOM.createRoot(document.getElementById(“root”)).render(<App/>);
+</script>
+
+</body>
+</html>
